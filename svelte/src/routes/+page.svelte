@@ -1,2 +1,8 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<div style="padding: 2rem; font-family: system-ui, sans-serif;">
+  <h1 style="color: #ff3e00; font-size: 2rem; font-weight: bold;">
+    it works!
+  </h1>
+  <p style="margin-top: 1rem; color: #666;">
+    Your Svelte application is running successfully.
+  </p>
+</div>

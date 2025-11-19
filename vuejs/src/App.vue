@@ -1,11 +1,14 @@
 <script setup></script>
 
 <template>
-  <h1 class="text-xl font-bold text-blue-800">You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <div style="padding: 2rem; font-family: system-ui, sans-serif;">
+    <h1 style="color: #42b883; font-size: 2rem; font-weight: bold;">
+      it works!
+    </h1>
+    <p style="margin-top: 1rem; color: #666;">
+      Your Vue.js application is running successfully.
+    </p>
+  </div>
 </template>
 
 <style scoped></style>

@@ -1,4 +1,4 @@
-FROM node:lts-alpine as build-stage
+FROM node:lts as build-stage
 WORKDIR /app
 COPY . .
 RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
