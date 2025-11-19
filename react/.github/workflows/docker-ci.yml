@@ -14,12 +14,34 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
+    - name: Clone build-error template
+      run: |
+        git clone --depth 1 --no-checkout https://github.com/worldskillsuk/templates.git /tmp/templates
+        cd /tmp/templates
+        git sparse-checkout set .build-error
+        git checkout
+
     - name: Build the Docker image
+      id: build
+      continue-on-error: true
       run: DOCKER_BUILDKIT=0 docker build . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
+
+    - name: Build error page on failure
+      if: steps.build.outcome == 'failure'
+      run: |
+        cd /tmp/templates/.build-error
+        DOCKER_BUILDKIT=0 docker build . --tag git.worldskills.uk/${{ github.repository }}
+
     - name: docker login
       env:
         USER: ${{ secrets.USER }}
         PASS: ${{ secrets.PASS }}
       run: docker login -u $USER -p $PASS git.worldskills.uk
+
     - name: push to docker hub
       run: docker push git.worldskills.uk/${{ github.repository }}
+
+    - name: Fail job if build failed
+      if: steps.build.outcome == 'failure'
+      run: exit 1
