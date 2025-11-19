@@ -1,23 +1,15 @@
-FROM node:lts as build-stage
+FROM node:18 as build-stage
 WORKDIR /app
+COPY package*.json ./
+RUN npm cache clean --force
+RUN npm install --legacy-peer-deps
 COPY . .
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 RUN npm run build
 
 FROM nginx:alpine
 
-COPY --from=build-stage /app/dist/angular-base/browser /usr/share/nginx/html
-
-RUN cat > /etc/nginx/conf.d/default.conf <<'NGINX_EOF'
-server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-NGINX_EOF
+COPY --from=build-stage /app/dist/angular-base /usr/share/nginx/html
+COPY default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
