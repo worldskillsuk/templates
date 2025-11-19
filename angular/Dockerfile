@@ -1,4 +1,4 @@
-FROM node:18 as build-stage
+FROM node:25 as build-stage
 WORKDIR /app
 COPY package*.json ./
 RUN npm cache clean --force
