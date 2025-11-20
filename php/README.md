@@ -22,8 +22,8 @@ Database credentials are provided via environment variables:
 
 ```php
 $db_host = getenv('DB_HOST') ?: 'db.worldskills.uk';
-$db_name = getenv('DB_NAME') ?: 'comp01_module_a';
-$db_user = getenv('DB_USER') ?: 'comp01';
+$db_name = getenv('DB_NAME') ?: 'compXX_module_x';
+$db_user = getenv('DB_USER') ?: 'compXX';
 $db_pass = getenv('DB_PASSWORD') ?: 'your_password';
 
 $pdo = new PDO(
@@ -78,8 +78,8 @@ echo json_encode([
 Set in your deployment environment (automatically configured in production):
 
 - `DB_HOST` - Database host (db.worldskills.uk)
-- `DB_NAME` - Database name (comp01_module_a)
-- `DB_USER` - Database user (comp01)
+- `DB_NAME` - Database name (compXX_module_x)
+- `DB_USER` - Database user (compXX)
 - `DB_PASSWORD` - Database password
 
 ## Deployment
@@ -93,7 +93,7 @@ git push
 ```
 
 Your application will be available at:
-`https://ws01.worldskills.uk/module-a/`
+`https://wsXX.worldskills.uk/module-x/`
 
 ## Local Development
 
