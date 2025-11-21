@@ -7,30 +7,27 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-
-    - name: Clone build-error template
-      run: |
-        git clone --depth 1 --no-checkout https://github.com/worldskillsuk/templates.git /tmp/templates
-        cd /tmp/templates
-        git sparse-checkout set .build-error
-        git checkout
 
     - name: Build the Docker image
       id: build
       continue-on-error: true
-      run: DOCKER_BUILDKIT=0 docker build . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
+      run: |
+        DOCKER_BUILDKIT=0 docker build \
+          --add-host=npm.worldskills.uk:192.168.100.100 \
+          --add-host=git.worldskills.uk:192.168.100.100 \
+          . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
 
     - name: Build error page on failure
       if: steps.build.outcome == 'failure'
       run: |
-        cd /tmp/templates/.build-error
+        mkdir -p /tmp/error-page
+        cd /tmp/error-page
+        echo 'FROM nginx:alpine' > Dockerfile
+        echo 'RUN echo "<html><body><h1>Build Failed</h1><p>Check Gitea Actions for details.</p></body></html>" > /usr/share/nginx/html/index.html' >> Dockerfile
         DOCKER_BUILDKIT=0 docker build . --tag git.worldskills.uk/${{ github.repository }}
 
     - name: docker login
