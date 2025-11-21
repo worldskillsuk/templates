@@ -3,44 +3,72 @@ name: Docker Image CI
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-
-    - name: Clone build-error template
-      run: |
-        git clone --depth 1 --no-checkout https://github.com/worldskillsuk/templates.git /tmp/templates
-        cd /tmp/templates
-        git sparse-checkout set .build-error
-        git checkout
 
     - name: Build the Docker image
       id: build
       continue-on-error: true
-      run: DOCKER_BUILDKIT=0 docker build . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
+      run: |
+        DOCKER_BUILDKIT=0 docker build \
+          --add-host=npm.worldskills.uk:192.168.100.100 \
+          --add-host=git.worldskills.uk:192.168.100.100 \
+          . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
 
     - name: Build error page on failure
       if: steps.build.outcome == 'failure'
       run: |
-        cd /tmp/templates/.build-error
+        mkdir -p /tmp/error-page
+        cd /tmp/error-page
+        cat > Dockerfile << 'EOF'
+        FROM nginx:alpine
+        RUN echo '<html><head><style>body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:#fff}.container{text-align:center;padding:2rem;border-radius:10px;background:#16213e;box-shadow:0 0 20px rgba(0,0,0,0.5)}h1{color:#e94560;margin:0 0 1rem}p{color:#a0a0a0}</style></head><body><div class="container"><h1>Build Failed</h1><p>Check Gitea Actions for build errors</p></div></body></html>' > /usr/share/nginx/html/index.html
+        EOF
         DOCKER_BUILDKIT=0 docker build . --tag git.worldskills.uk/${{ github.repository }}
 
-    - name: docker login
+    - name: Docker login
       env:
         USER: ${{ secrets.USER }}
         PASS: ${{ secrets.PASS }}
       run: docker login -u $USER -p $PASS git.worldskills.uk
 
-    - name: push to docker hub
+    - name: Push image
       run: docker push git.worldskills.uk/${{ github.repository }}
+
+    - name: Deploy container
+      env:
+        USER: ${{ secrets.USER }}
+      run: |
+        # Extract username and repo name
+        REPO_OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
+        REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+
+        # Determine subdomain from username (comp01 -> ws01, comp02 -> ws02, etc)
+        SUBDOMAIN=$(echo "$REPO_OWNER" | sed 's/comp/ws/')
+
+        # Container name: username_reponame
+        CONTAINER_NAME="${REPO_OWNER}_${REPO_NAME}"
+
+        # Remove existing container if exists
+        docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+
+        # Create new container with traefik labels
+        docker run -d \
+          --name "$CONTAINER_NAME" \
+          --restart always \
+          --network gitea \
+          -l "traefik.enable=true" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.rule=Host(\`${SUBDOMAIN}.worldskills.uk\`) && PathPrefix(\`/${REPO_NAME}\`)" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.entrypoints=websecure" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.tls=true" \
+          -l "traefik.http.services.${CONTAINER_NAME}.loadbalancer.server.port=80" \
+          -l "traefik.http.middlewares.${CONTAINER_NAME}-strip.stripprefix.prefixes=/${REPO_NAME}" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.middlewares=${CONTAINER_NAME}-strip" \
+          "git.worldskills.uk/${{ github.repository }}:latest"
 
     - name: Fail job if build failed
       if: steps.build.outcome == 'failure'
