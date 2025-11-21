@@ -8,17 +8,9 @@ RUN npm run build
 FROM nginx:alpine
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN cat > /etc/nginx/conf.d/default.conf <<'NGINX_EOF'
-server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-NGINX_EOF
+
 
 EXPOSE 80
 
