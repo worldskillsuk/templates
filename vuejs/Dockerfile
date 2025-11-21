@@ -1,6 +1,7 @@
-FROM node:25lts as build-stage
+FROM node:lts as build-stage
 WORKDIR /app
 COPY . .
+RUN npm config set strict-ssl false
 RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 RUN npm run build
 
