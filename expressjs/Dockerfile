@@ -1,8 +1,10 @@
 FROM node:lts
 
 WORKDIR /app
-COPY ./ /app
+COPY . .
 RUN npm config set strict-ssl false
 RUN npm install
 
-CMD ["node","app.js"]
+EXPOSE 80
+
+CMD ["node", "src/server.js"]
