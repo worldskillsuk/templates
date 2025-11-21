@@ -3,26 +3,87 @@ name: Docker Image CI
 on:
   push:
     branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-    
+
+    - name: Create database if not exists
+      run: |
+        # Database name format: comp01_module_a
+        DB_NAME=$(echo "${{ github.repository }}" | tr '/-' '_')
+        echo "Creating database $DB_NAME if it doesn't exist..."
+        docker exec docker-competitor_db-1 mysql -uroot -pworldskills2025 -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;" 2>/dev/null || echo "Database creation skipped (may already exist)"
+
     - name: Build the Docker image
-      run: DOCKER_BUILDKIT=0 docker build --build-arg DB_NAME=$(echo "${{ github.repository }}" | tr '/-' '__') --build-arg DB_USERNAME=${{ github.repository_owner }} --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} --build-arg DB_HOST=${{ secrets.DB_HOST }} . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}:latest
-      
-    - name: docker login
+      id: build
+      continue-on-error: true
+      run: |
+        # Database name format: comp01_module_a
+        DB_NAME=$(echo "${{ github.repository }}" | tr '/-' '_')
+
+        DOCKER_BUILDKIT=0 docker build \
+          --build-arg DB_NAME=$DB_NAME \
+          --build-arg DB_USERNAME=${{ github.repository_owner }} \
+          --build-arg DB_PASSWORD=${{ secrets.PASS }} \
+          --build-arg DB_HOST=competitor_db \
+          --add-host=npm.worldskills.uk:192.168.100.100 \
+          --add-host=git.worldskills.uk:192.168.100.100 \
+          . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
+
+    - name: Build error page on failure
+      if: steps.build.outcome == 'failure'
+      run: |
+        mkdir -p /tmp/error-page
+        cd /tmp/error-page
+        cat > Dockerfile << 'ERREOF'
+        FROM nginx:alpine
+        RUN echo '<html><head><style>body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:#fff}.container{text-align:center;padding:2rem;border-radius:10px;background:#16213e;box-shadow:0 0 20px rgba(0,0,0,0.5)}h1{color:#e94560;margin:0 0 1rem}p{color:#a0a0a0}</style></head><body><div class="container"><h1>Build Failed</h1><p>Check Gitea Actions for build errors</p></div></body></html>' > /usr/share/nginx/html/index.html
+        ERREOF
+        DOCKER_BUILDKIT=0 docker build . --tag git.worldskills.uk/${{ github.repository }}
+
+    - name: Docker login
       env:
         USER: ${{ secrets.USER }}
         PASS: ${{ secrets.PASS }}
       run: docker login -u $USER -p $PASS git.worldskills.uk
-      
-    - name: push to docker hub
-      run: docker push git.worldskills.uk/${{ github.repository }}:latest
+
+    - name: Push image
+      run: docker push git.worldskills.uk/${{ github.repository }}
+
+    - name: Deploy container
+      env:
+        PASS: ${{ secrets.PASS }}
+      run: |
+        REPO_OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
+        REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+        DB_NAME=$(echo "${{ github.repository }}" | tr '/-' '_')
+        SUBDOMAIN=$(echo "$REPO_OWNER" | sed 's/comp/ws/')
+        CONTAINER_NAME="${REPO_OWNER}_${REPO_NAME}"
+
+        docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+
+        docker run -d \
+          --name "$CONTAINER_NAME" \
+          --restart always \
+          --network gitea \
+          -e DB_CONNECTION=mysql \
+          -e DB_HOST=competitor_db \
+          -e DB_PORT=3306 \
+          -e DB_DATABASE=$DB_NAME \
+          -e DB_USERNAME=$REPO_OWNER \
+          -e DB_PASSWORD=$PASS \
+          -l "traefik.enable=true" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.rule=Host(\`${SUBDOMAIN}.worldskills.uk\`) && PathPrefix(\`/${REPO_NAME}\`)" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.entrypoints=websecure" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.tls=true" \
+          -l "traefik.http.services.${CONTAINER_NAME}.loadbalancer.server.port=80" \
+          -l "traefik.http.middlewares.${CONTAINER_NAME}-strip.stripprefix.prefixes=/${REPO_NAME}" \
+          -l "traefik.http.routers.${CONTAINER_NAME}.middlewares=${CONTAINER_NAME}-strip" \
+          "git.worldskills.uk/${{ github.repository }}:latest"
+
+    - name: Fail job if build failed
+      if: steps.build.outcome == 'failure'
+      run: exit 1
