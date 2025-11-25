@@ -1,8 +1,9 @@
 FROM node:lts as build-stage
 WORKDIR /app
+COPY package.json package-lock.json* ./
+# RUN npm config set strict-ssl false
+RUN npm ci --verbose
 COPY . .
-RUN npm config set strict-ssl false
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 RUN npm run build
 
 FROM nginx:alpine
