@@ -15,8 +15,8 @@ jobs:
       continue-on-error: true
       run: |
         DOCKER_BUILDKIT=0 docker build \
-          --add-host=npm.worldskills.uk:192.168.100.100 \
-          --add-host=git.worldskills.uk:192.168.100.100 \
+          --add-host=npm.worldskills.uk:10.44.0.15 \
+          --add-host=git.worldskills.uk:10.44.0.15 \
           . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
 
     - name: Build error page on failure
