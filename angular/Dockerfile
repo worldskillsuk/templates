@@ -1,15 +1,14 @@
 FROM node:lts as build-stage
 WORKDIR /app
-COPY package*.json ./
-RUN npm config set strict-ssl false
-RUN npm cache clean --force
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json* ./
+# RUN npm config set strict-ssl false
+RUN npm ci --verbose
 COPY . .
-RUN npm run build -- --base-href=./
+RUN npm run build
 
 FROM nginx:alpine
 
-COPY --from=build-stage /app/dist/angular-base/browser /usr/share/nginx/html
+COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
