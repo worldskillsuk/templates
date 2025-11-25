@@ -1,14 +1,9 @@
 FROM node:lts as build-stage
-
 WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm config set strict-ssl false
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-
+COPY package.json package-lock.json* ./
+# RUN npm config set strict-ssl false
+RUN npm ci --verbose
 COPY . .
-
 RUN npm run build
 
 # Fix absolute paths for subdirectory deployment
