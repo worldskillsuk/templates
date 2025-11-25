@@ -1,8 +1,9 @@
 FROM node:lts
 
 WORKDIR /app
+COPY package.json package.json* ./
+RUN npm ci --verbose
 COPY . .
-RUN npm install
 
 EXPOSE 80
 
