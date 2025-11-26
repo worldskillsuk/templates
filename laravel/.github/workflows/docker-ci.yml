@@ -29,8 +29,8 @@ jobs:
           --build-arg DB_USERNAME=${{ github.repository_owner }} \
           --build-arg DB_PASSWORD=${{ secrets.PASS }} \
           --build-arg DB_HOST=competitor_db \
-          --add-host=npm.worldskills.uk:192.168.100.100 \
-          --add-host=git.worldskills.uk:192.168.100.100 \
+          --add-host=npm.worldskills.uk:10.44.0.15 \
+          --add-host=git.worldskills.uk:10.44.0.15 \
           . --file Dockerfile --tag git.worldskills.uk/${{ github.repository }}
 
     - name: Build error page on failure
@@ -69,6 +69,7 @@ jobs:
           --name "$CONTAINER_NAME" \
           --restart always \
           --network gitea \
+          -e APP_URL=https://${SUBDOMAIN}.worldskills.uk \
           -e DB_CONNECTION=mysql \
           -e DB_HOST=competitor_db \
           -e DB_PORT=3306 \

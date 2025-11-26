@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+echo "Creating storage symlink..."
+php artisan storage:link --force
+
 echo "Running database migrations..."
 php artisan migrate --force
 

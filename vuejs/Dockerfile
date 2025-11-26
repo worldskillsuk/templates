@@ -1,4 +1,4 @@
-FROM node:lts as build-stage
+FROM node:22-alpine as build-stage
 WORKDIR /app
 COPY package.json package-lock.json* ./
 # RUN npm config set strict-ssl false
